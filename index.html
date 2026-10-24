@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Pokédex interactiva con los 1025 Pokémon, evoluciones, movimientos, debilidades y un mini juego.">
+    <meta name="theme-color" content="#b91c1c">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+    <link rel="stylesheet" href="./css/index.css">
+    <link rel="icon" type="image/jpeg" href="./images/icono.png">    <title>Pokédex</title>
+</head>
+<body>
+    <header class="top">
+        <div class="top-in">
+            <a class="marca" href="#" aria-label="Pokédex">
+                <span class="pokebola" aria-hidden="true"></span>
+                <span class="marca-texto">Pokédex</span>
+            </a>
+            <nav class="tabs" aria-label="Secciones">
+                <button class="tab activa" type="button" data-vista="dex">Pokédex</button>
+                <button class="tab" type="button" data-vista="juego">¿Quién es ese Pokémon?</button>
+                <button class="tab" type="button" data-vista="aventura">Aventura</button>
+            </nav>
+        </div>
+    </header>
+
+    <main>
+        <!-- ============ POKÉDEX ============ -->
+        <section id="vistaDex" class="vista">
+            <div class="barra">
+                <label class="buscador">
+                    <span class="sr">Buscar</span>
+                    <input id="buscar" type="search" placeholder="Buscar por nombre o número…" autocomplete="off">
+                </label>
+                <select id="selGen" aria-label="Generación">
+                    <option value="todas">Todas las generaciones</option>
+                    <option value="1">Gen 1 · Kanto</option>
+                    <option value="2">Gen 2 · Johto</option>
+                    <option value="3">Gen 3 · Hoenn</option>
+                    <option value="4">Gen 4 · Sinnoh</option>
+                    <option value="5">Gen 5 · Unova</option>
+                    <option value="6">Gen 6 · Kalos</option>
+                    <option value="7">Gen 7 · Alola</option>
+                    <option value="8">Gen 8 · Galar</option>
+                    <option value="9">Gen 9 · Paldea</option>
+                </select>
+                <select id="selOrden" aria-label="Ordenar">
+                    <option value="num">Ordenar por número</option>
+                    <option value="az">Ordenar de A a Z</option>
+                    <option value="za">Ordenar de Z a A</option>
+                </select>
+                <button id="btnFavs" class="btn-fav" type="button" aria-pressed="false">♥ Favoritos <span id="cantFavs">0</span></button>
+            </div>
+
+            <div id="chipsTipos" class="chips" aria-label="Filtrar por tipo"></div>
+
+            <p id="estado" class="estado" role="status" aria-live="polite">Cargando Pokédex…</p>
+            <div id="grilla" class="grilla"></div>
+            <div id="centinela" class="centinela" aria-hidden="true"></div>
+        </section>
+
+        <!-- ============ JUEGO ============ -->
+        <section id="vistaJuego" class="vista" hidden>
+            <div class="juego">
+                <div id="juegoInicio" class="j-panel j-inicio">
+                    <div class="j-logo" aria-hidden="true">?</div>
+                    <h2>¿Quién es ese Pokémon?</h2>
+                    <p>Adiviná al Pokémon por su silueta. Tenés 10 rondas, 3 vidas y 12 segundos por ronda. Respondé rápido y en racha para sumar más puntos.</p>
+                    <div class="j-opciones">
+                        <label>Generación
+                            <select id="juegoGen">
+                                <option value="todas">Todas</option>
+                                <option value="1">Gen 1 · Kanto</option>
+                                <option value="2">Gen 2 · Johto</option>
+                                <option value="3">Gen 3 · Hoenn</option>
+                                <option value="4">Gen 4 · Sinnoh</option>
+                                <option value="5">Gen 5 · Unova</option>
+                                <option value="6">Gen 6 · Kalos</option>
+                                <option value="7">Gen 7 · Alola</option>
+                                <option value="8">Gen 8 · Galar</option>
+                                <option value="9">Gen 9 · Paldea</option>
+                            </select>
+                        </label>
+                        <label class="j-check"><input id="juegoSonido" type="checkbox" checked> Sonido</label>
+                    </div>
+                    <button id="btnJugar" class="btn-grande" type="button">Jugar</button>
+                    <p class="j-record">Mejor puntaje: <b id="recordInicio">0</b></p>
+                </div>
+
+                <div id="juegoPartida" class="j-panel" hidden>
+                    <div class="j-hud">
+                        <div><small>Ronda</small><b id="hudRonda">1/10</b></div>
+                        <div><small>Puntos</small><b id="hudPuntos">0</b></div>
+                        <div><small>Racha</small><b id="hudRacha">0</b></div>
+                        <div><small>Vidas</small><b id="hudVidas" class="vidas">♥♥♥</b></div>
+                    </div>
+                    <div class="j-tiempo"><span id="barraTiempo"></span></div>
+                    <div class="j-escena" id="escena">
+                        <img id="juegoImg" alt="Silueta de un Pokémon" class="silueta">
+                        <div id="juegoNombre" class="j-nombre" aria-live="polite"></div>
+                    </div>
+                    <div id="juegoOpciones" class="j-grid"></div>
+                    <p class="j-ayuda">Atajo: teclas 1 a 4</p>
+                </div>
+
+                <div id="juegoFin" class="j-panel j-fin" hidden>
+                    <h2 id="finTitulo">Fin del juego</h2>
+                    <div class="fin-puntos"><b id="finPuntos">0</b><small>puntos</small></div>
+                    <p id="finDetalle"></p>
+                    <p class="j-record">Mejor puntaje: <b id="finRecord">0</b></p>
+                    <div class="fin-botones">
+                        <button id="btnOtra" class="btn-grande" type="button">Jugar otra vez</button>
+                        <button id="btnMenu" class="btn-sec" type="button">Cambiar generación</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+        <!-- ============ AVENTURA ============ -->
+        <section id="vistaAventura" class="vista" hidden>
+            <div class="av">
+                <!-- Pantalla inicial -->
+                <div id="avInicio" class="av-panel av-inicio">
+                    <div class="j-logo av-logo" aria-hidden="true"><span class="pokebola"></span></div>
+                    <h2>Aventura Pokémon</h2>
+                    <p>Recorré el mundo, enfrentá Pokémon salvajes y capturalos para completar tu equipo de 6. Ganá experiencia, subí de nivel y hacé evolucionar a tus Pokémon. Cada 5 encuentros aparece un <b>Pokémon Alfa</b>, más fuerte y con mejores recompensas.</p>
+                    <h3 class="av-sub">Elegí tu compañero inicial</h3>
+                    <div class="gen-tabs" id="avGenTabs"></div>
+                    <div class="av-starters" id="avStarters"></div>
+                </div>
+
+                <!-- Centro de operaciones: equipo, caja y exploración -->
+                <div id="avHub" class="av-hub" hidden></div>
+
+                <!-- Combate -->
+                <div id="avCombate" class="av-combate" hidden>
+                    <div class="bt-campo" id="btCampo">
+                        <div class="bt-suelo-e"></div>
+                        <div class="bt-suelo-j"></div>
+                        <div class="bt-info bt-info-e" id="btInfoE"></div>
+                        <div class="bt-sprite bt-sprite-e"><img id="btImgE" alt="Pokémon rival" data-id=""></div>
+                        <div class="bt-sprite bt-sprite-j"><img id="btImgJ" alt="Tu Pokémon" data-id=""></div>
+                        <div class="bt-info bt-info-j" id="btInfoJ"></div>
+                        <div class="bt-fx" id="btFx"></div>
+                    </div>
+                    <div class="bt-panel">
+                        <p class="bt-log" id="btLog" role="status" aria-live="polite"></p>
+                        <div class="bt-menu" id="btMenu"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- ============ DETALLE ============ -->
+    <div id="modal" class="modal" hidden>
+        <div class="modal-fondo" data-cerrar></div>
+        <div class="modal-caja" role="dialog" aria-modal="true" aria-labelledby="mTitulo">
+            <button class="m-cerrar" type="button" aria-label="Cerrar" data-cerrar>&times;</button>
+            <button class="m-nav prev" type="button" aria-label="Pokémon anterior">‹</button>
+            <button class="m-nav next" type="button" aria-label="Pokémon siguiente">›</button>
+            <div id="mContenido"></div>
+        </div>
+    </div>
+
+    <footer class="pie">
+        Datos e imágenes de <a href="https://pokeapi.co" target="_blank" rel="noopener">PokéAPI</a>. Pokémon y sus nombres son marcas de Nintendo, Game Freak y Creatures Inc. Proyecto sin fines de lucro.
+    </footer>
+
+    <script src="./js/index.js"></script>
+</body>
+</html>
