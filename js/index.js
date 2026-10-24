@@ -886,7 +886,7 @@
             };
         };
         const pvMax = (m) => statsDe(m).hp;
-        const xpNecesaria = (n) => Math.round((Math.pow(n + 1, 3) - Math.pow(n, 3)) / 2);
+        const xpNecesaria = (n) => Math.max(8, Math.round((Math.pow(n + 1, 3) - Math.pow(n, 3)) / 3));
         const baseDe = (p) => {
             const g = (n) => (p.stats.find((s) => s.stat.name === n) || { base_stat: 50 }).base_stat;
             return { hp: g('hp'), atk: g('attack'), def: g('defense'), spa: g('special-attack'), spd: g('special-defense'), spe: g('speed') };
@@ -1812,15 +1812,34 @@
             }
         }
 
+        // Cartel flotante con el Pokémon que entra (nombre y tipos)
+        function cartelCambio(m) {
+            const f = document.createElement('div');
+            f.className = 'bt-flash f-j cambio';
+            f.innerHTML = `<div class="f-nombre">🔄 ¡${m.shiny ? '✨ ' : ''}${esc(bonito(m.nombre))}!</div><div class="f-tipos">${m.tipos.map(insignia).join('')}</div>`;
+            $fx.appendChild(f);
+            setTimeout(() => f.remove(), 1800);
+        }
+
         async function cambiarA(idx) {
-            await anim($imgJ, 'sale-j', 380);
+            // El Pokémon actual sale (o ya cayó): se oculta del todo antes de mostrar al nuevo
+            if (!$imgJ.classList.contains('cae')) { $imgJ.classList.add('sale-j'); await espera(380); }
+            $imgJ.style.visibility = 'hidden';
+            $imgJ.classList.remove('sale-j', 'cae', 'entra-j', 'entra-bola');
             C.idx = idx;
             C.participantes.add(J().uid);
             C.movsJ = await cargarMovsJ();
             pintarSprites();
             pintarCampo();
-            anim($imgJ, 'entra-j', 600);
-            await mensaje(`¡Adelante, ${nombreJ()}!`, 800);
+            cartelCambio(J());
+            // destello de la Poké Ball al salir
+            const o = FX_POS.j;
+            const h = pieza('fx-estallido', o.x, o.y, '#ffffff', 26);
+            if (!reduceMotion) h.animate([{ transform: 'translate(-50%,-50%) scale(.2)', opacity: 1 }, { transform: 'translate(-50%,-50%) scale(1.2)', opacity: 0 }], { duration: 520, fill: 'both' }).finished.then(() => h.remove()).catch(() => h.remove()); else h.remove();
+            await espera(200);
+            $imgJ.style.visibility = '';
+            anim($imgJ, 'entra-bola', 650);
+            await mensaje(`¡Adelante, ${nombreJ()}!`, 1000);
         }
 
         async function cambiarForzado(idx) {
@@ -1842,14 +1861,25 @@
 
             const bola = document.createElement('div');
             bola.className = 'fx-ball ' + (tipo === 'superball' ? 'super' : '');
+            // La bola viaja desde tu Pokémon hasta el CENTRO del Pokémon rival y se queda ahí mientras "carga"
+            // (la posición se calcula con el tamaño real en pantalla y todo se controla desde JS)
+            const rb = $fx.getBoundingClientRect(), re = $imgE.getBoundingClientRect(), rj = $imgJ.getBoundingClientRect();
+            const pct = (r) => [(r.left + r.width / 2 - rb.left) / rb.width * 100, (r.top + r.height * 0.5 - rb.top) / rb.height * 100];
+            const [ex, ey] = pct(re), [ax, ay] = pct(rj);
+            bola.style.cssText = `animation:none;left:${ex.toFixed(1)}%;top:${ey.toFixed(1)}%`;
             $fx.appendChild(bola);
+            if (!reduceMotion) bola.animate([
+                { left: ax + '%', top: ay + '%', transform: 'translate(-50%,-50%) rotate(0) scale(.7)' },
+                { left: (ax + ex) / 2 + '%', top: '8%', transform: 'translate(-50%,-50%) rotate(360deg) scale(1)', offset: .45 },
+                { left: ex + '%', top: ey + '%', transform: 'translate(-50%,-50%) rotate(720deg) scale(1)' }
+            ], { duration: 820, easing: 'cubic-bezier(.3,.6,.4,1)' });
             await espera(820);
             $imgE.classList.add('capturando');
             await espera(500);
             for (let i = 0; i < sacudidas; i++) {
-                bola.classList.add('tambalea');
+                bola.style.animation = 'tambalear .75s ease-in-out';
                 await espera(750);
-                bola.classList.remove('tambalea');
+                bola.style.animation = 'none';
                 await espera(300);
             }
             if (!exito) {
@@ -1858,8 +1888,9 @@
                 await mensaje(sacudidas === 0 ? '¡Oh, no! ¡El Pokémon se escapó!' : sacudidas === 1 ? '¡Ya casi lo tenías!' : '¡Qué cerca! Se liberó.', 1100);
                 return false;
             }
-            bola.classList.add('exito');
+            bola.style.animation = 'exito .8s ease-out both';
             await mensaje(`¡Genial! ¡${nombreE()} fue capturado!${E().shiny ? ' ✨' : ''}${C.legendario ? ' 👑' : ''}`, 1300);
+            await premioCaptura();
             const capturado = E();
             capturado.nivel = Math.max(capturado.nivel, 1);
             if (S.equipo.length < MAX_EQUIPO) { S.equipo.push(capturado); await mensaje(`${bonito(capturado.nombre)} se unió a tu equipo.`, 1000); }
@@ -1899,16 +1930,38 @@
             C.ocupado = false;
         }
 
-        async function victoria() {
-            await anim($imgE, 'cae', 700);
-            await mensaje(`¡${nombreE()} se debilitó!`, 1000);
+        // Reparte la experiencia: los que pelearon cobran completo; el resto del equipo (vivo) cobra el 40 %
+        async function repartirXP(mult) {
+            const base = Math.floor(E().expBase * E().nivel / 5 * (C.alfa ? 1.8 : 1) * (C.lider ? 1.3 : 1) * mult);
             const vivos = S.equipo.filter((m) => C.participantes.has(m.uid) && m.hp > 0);
-            const total = Math.floor(E().expBase * E().nivel / 6 * (C.alfa ? 1.8 : 1));
-            const cada = Math.max(1, Math.floor(total / Math.max(1, vivos.length)));
+            const cada = Math.max(1, Math.floor(base / Math.max(1, vivos.length)));
             for (const m of vivos) {
                 await mensaje(`${bonito(m.nombre)} ganó ${cada} EXP.`, 900);
                 await ganarXP(m, cada);
             }
+            const banca = S.equipo.filter((m) => !C.participantes.has(m.uid) && m.hp > 0 && m.nivel < 100);
+            if (banca.length) {
+                const extra = Math.max(1, Math.floor(cada * 0.4));
+                await mensaje(`El resto del equipo ganó ${extra} EXP.`, 900);
+                for (const m of banca) await ganarXP(m, extra);
+            }
+        }
+
+        // Recompensa por capturar: TODO el equipo gana experiencia completa (no se divide)
+        async function premioCaptura() {
+            const rival = E();
+            const bono = (C.alfa ? 1.8 : 1) * (C.legendario ? 2 : 1) * (rival.shiny ? 1.5 : 1);
+            const cada = Math.max(5, Math.floor(rival.expBase * rival.nivel / 5 * 0.8 * bono));
+            const equipo = S.equipo.filter((m) => m.hp > 0 && m.nivel < 100);
+            if (!equipo.length) return;
+            await mensaje(`🎁 ¡Recompensa por captura! Todo tu equipo gana ${cada} EXP.`, 1500);
+            for (const m of equipo) await ganarXP(m, cada);
+        }
+
+        async function victoria() {
+            await anim($imgE, 'cae', 700);
+            await mensaje(`¡${nombreE()} se debilitó!`, 1000);
+            await repartirXP(1);
             S.stats.victorias++;
             S.stats.racha++;
             S.stats.mejorRacha = Math.max(S.stats.mejorRacha, S.stats.racha);
